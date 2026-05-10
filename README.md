@@ -43,7 +43,7 @@ The United States continues to grapple with a persistent and evolving drug overd
 
 This CS620 project analyzes comprehensive CDC data on overdose death rates by drug type, sex, age, race, and Hispanic origin. We developed a star-schema logical data model, built a high-performing predictive regression model (R² > 0.90 with Random Forest), and delivered a fully interactive, production-quality dashboard (**overdose-dashboard.html**).
 
-The dashboard features six dynamic visualizations, a guided Story Mode that narrates the human impact of the epidemic, Excel upload support, and one-click PDF export. Together, these tools transform complex public health data into clear, actionable insights that enable federal agencies, state health departments, and community organizations to forecast trends, identify high-risk populations, and design more effective, targeted interventions.
+The dashboard features six dynamic visualizations and Excel upload support. Together, these tools transform complex public health data into clear, actionable insights that enable federal agencies, state health departments, and community organizations to forecast trends, identify high-risk populations, and design more effective, targeted interventions.
 
 > 📈 **Ready-to-use interactive dashboard • Predictive modeling • Evidence-based public health impact**
 
