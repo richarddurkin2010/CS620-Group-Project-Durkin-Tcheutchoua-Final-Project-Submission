@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Overdose Death Rates • The Human Story</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&display=swap');
+        :root { --tw-color-primary: #f97316; }
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .title-font { font-family: 'Space Grotesk', sans-serif; }
+        .chart-container { position: relative; }
+        .dashboard-header { background: linear-gradient(90deg, #0f172a 0%, #1e2937 100%); }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .plot-card { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .plot-card:hover { transform: translateY(-8px) scale(1.03); box-shadow: 0 30px 60px -15px rgb(249 115 22 / 0.3); }
+        .highlight { animation: pulse 2s infinite; box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.4); }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+    <div class="min-h-screen">
+        <div class="dashboard-header py-8 px-6 border-b border-slate-700">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-x-4">
+                    <div class="text-4xl">📖</div>
+                    <div>
+                        <h1 class="title-font text-4xl font-semibold tracking-tighter">The Human Story</h1>
+                        <p class="text-orange-300">U.S. Drug Overdose Death Rates • 1999–2018</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-x-6">
+                    <!--
+                    <button onclick="toggleStoryMode()" id="story-toggle-btn" class="flex items-center gap-x-3 px-8 py-4 bg-white text-slate-900 hover:bg-orange-500 hover:text-white rounded-3xl font-semibold shadow-xl transition-all">
+                        <span id="story-icon">📖</span>
+                        <span id="story-btn-text">Begin the Story</span>
+                    </button> 
+                    -->
+                    <button onclick="loadExcelFile()" id="load-excel-btn" class="px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-3xl font-semibold transition-all flex items-center gap-x-2">
+                        <span>📤</span>
+                        <span id="excel-btn-text">Load Excel File</span>
+                    </button>
+                    <!--
+                    <button onclick="showPDFOptionsModal()" class="px-8 py-4 bg-white text-slate-900 hover:bg-orange-500 hover:text-white rounded-3xl font-semibold transition-all flex items-center gap-x-2">
+                        <span>📄</span>
+                        <span>Download PDF</span>
+                    </button>
+                    -->
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 py-8">
+            <!-- NORMAL DASHBOARD -->
+            <div id="normal-dashboard" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Plot 1 -->
+                <div id="card-1" class="plot-card lg:col-span-7 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="flex justify-between mb-6"><div><div class="uppercase text-xs text-orange-400">PLOT 1 • OVERALL</div><h2 class="text-2xl font-semibold">All Drug Overdose Death Rates</h2></div></div>
+                    <div class="chart-container h-80"><canvas id="overallChart"></canvas></div>
+                </div>
+                <!-- Plot 2 -->
+                <div id="card-2" class="plot-card lg:col-span-5 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="mb-6"><div class="uppercase text-xs text-orange-400">PLOT 2 • BY SEX</div><h2 class="text-2xl font-semibold">Death Rates by Sex</h2></div>
+                    <div class="chart-container h-80"><canvas id="sexChart"></canvas></div>
+                </div>
+                <!-- Plot 3 -->
+                <div id="card-3" class="plot-card lg:col-span-5 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="mb-6"><div class="uppercase text-xs text-orange-400">PLOT 3 • BY AGE GROUPS</div><h2 class="text-2xl font-semibold">2018 Crude Death Rates by Age Group</h2></div>
+                    <div class="chart-container h-80"><canvas id="ageChart"></canvas></div>
+                </div>
+                <!-- Plot 4 -->
+                <div id="card-4" class="plot-card lg:col-span-7 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="mb-6"><div class="uppercase text-xs text-orange-400">PLOT 4 • BY RACE</div><h2 class="text-2xl font-semibold">2018 Age-Adjusted Rates by Race</h2></div>
+                    <div class="chart-container h-80"><canvas id="raceChart"></canvas></div>
+                </div>
+                <!-- Plot 5 -->
+                <div id="card-5" class="plot-card lg:col-span-12 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="flex justify-between items-baseline mb-6">
+                        <div>
+                            <div class="uppercase text-xs text-orange-400">PLOT 5 • BY RACE AND SEX</div>
+                            <h2 id="plot5-title" class="text-2xl font-semibold">2018 Rates by Race and Sex (All Races)</h2>
+                        </div>
+                        <select id="raceSelect" onchange="updatePlot5()" class="bg-slate-800 border border-slate-600 rounded-2xl px-4 py-2 text-sm"></select>
+                    </div>
+                    <div class="chart-container h-80"><canvas id="sexRaceChart"></canvas></div>
+                </div>
+                <!-- Plot 6: By Drug Type -->
+                <div id="card-6" class="plot-card lg:col-span-12 bg-slate-900 rounded-3xl p-6 border border-slate-700">
+                    <div class="mb-6"><div class="uppercase text-xs text-orange-400">PLOT 6 • BY DRUG TYPE</div><h2 class="text-2xl font-semibold">2018 Death Rates by Drug Type</h2></div>
+                    <div class="chart-container h-80"><canvas id="drugTypeChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- STORY MODE -->
+            <div id="story-mode" class="hidden flex gap-8">
+                <div class="w-96 bg-slate-900 border border-orange-500/30 rounded-3xl p-8 sticky top-8 h-fit">
+                    <div class="flex justify-between items-center mb-6">
+                        <div id="story-step-title" class="text-3xl font-semibold text-orange-400"></div>
+                        <div class="font-mono text-sm text-slate-400" id="step-counter">1 of 5</div>
+                    </div>
+                    <div id="story-subtitle" class="text-slate-300 text-xl mb-8"></div>
+                    <div id="story-text" class="text-slate-400 leading-relaxed text-[15px] mb-10"></div>
+                    <div id="key-stats" class="grid grid-cols-2 gap-6"></div>
+                    <div class="mt-12 flex gap-x-4">
+                        <button onclick="prevStoryStep()" class="flex-1 py-4 text-slate-400 hover:text-white border border-slate-600 rounded-3xl font-medium">← Previous</button>
+                        <button onclick="nextStoryStep()" class="flex-1 py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-3xl font-semibold">Next Insight →</button>
+                    </div>
+                    <div class="mt-8 flex justify-center gap-x-2">
+                        <div onclick="goToStep(0)" id="dot-0" class="step-dot w-3 h-3 bg-orange-400 rounded-full cursor-pointer"></div>
+                        <div onclick="goToStep(1)" id="dot-1" class="step-dot w-3 h-3 bg-slate-500 hover:bg-slate-400 rounded-full cursor-pointer"></div>
+                        <div onclick="goToStep(2)" id="dot-2" class="step-dot w-3 h-3 bg-slate-500 hover:bg-slate-400 rounded-full cursor-pointer"></div>
+                        <div onclick="goToStep(3)" id="dot-3" class="step-dot w-3 h-3 bg-slate-500 hover:bg-slate-400 rounded-full cursor-pointer"></div>
+                        <div onclick="goToStep(4)" id="dot-4" class="step-dot w-3 h-3 bg-slate-500 hover:bg-slate-400 rounded-full cursor-pointer"></div>
+                    </div>
+                </div>
+                <div class="flex-1" id="story-plots-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Modal -->
+    <div id="pdfModal" onclick="if(event.target.id === 'pdfModal') hidePDFOptionsModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            <div class="px-8 pt-6 pb-4 border-b border-slate-700">
+                <h3 class="text-2xl font-semibold text-white">Customize PDF Export</h3>
+            </div>
+            <div class="p-8 space-y-8">
+                <div>
+                    <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">PDF Title</label>
+                    <input id="pdfTitle" type="text" value="U.S. Drug Overdose Death Rates • 1999–2018" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3 text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Orientation</label>
+                        <select id="pdfOrientation" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3 text-white">
+                            <option value="landscape">Landscape</option>
+                            <option value="portrait">Portrait</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Quality</label>
+                        <select id="pdfQuality" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3 text-white">
+                            <option value="2">High Resolution</option>
+                            <option value="1.5" selected>Standard</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-8 py-6 bg-slate-800 border-t border-slate-700 flex justify-end gap-x-4">
+                <button onclick="hidePDFOptionsModal()" class="px-6 py-3 text-slate-400 hover:text-white">Cancel</button>
+                <button onclick="generateCustomPDF()" class="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-3xl font-semibold">Generate &amp; Download PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dfData = null;
+        let charts = {};
+        let currentStep = 0;
+        let isStoryMode = false;
+
+        const storyData = [
+            {id:0, title:"The Silent Epidemic Begins", subtitle:"1999 – 6.1 per 100,000", text:"In 1999 drug overdose deaths were relatively rare. By 2017 the rate had more than tripled.", stats:[{label:"1999",value:6.1},{label:"2017 Peak",value:21.7}], cardId:"card-1"},
+            {id:1, title:"Men Bear the Heaviest Burden", subtitle:"Consistent 2× gender gap", text:"Men have died at roughly twice the rate of women throughout the entire period.", stats:[{label:"Male 2017",value:29.1},{label:"Female 2017",value:14.4}], cardId:"card-2"},
+            {id:2, title:"Young Adults Hit Hardest", subtitle:"Prime working years lost", text:"The 25–44 age groups suffered the highest crude death rates in 2018.", stats:[{label:"25-34 yrs",value:35.5},{label:"35-44 yrs",value:38.3}], cardId:"card-3"},
+            {id:3, title:"Racial Disparities Are Stark", subtitle:"Black males highest in 2018", text:"Black males had the highest rate at 30.9 per 100,000.", stats:[{label:"Black Male",value:30.9}], cardId:"card-4"},
+            {id:4, title:"A National Wake-Up Call", subtitle:"The full picture", text:"These numbers represent real families and communities in crisis.", stats:[{label:"2018 Overall",value:20.7}], cardId:"card-5"}
+        ];
+
+        function initTailwind() { tailwind.config = { content: [] }; }
+
+        async function loadExcelFile() {
+            const btnText = document.getElementById('excel-btn-text');
+            const original = btnText.innerHTML;
+            btnText.innerHTML = '📤 Processing...';
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) { btnText.innerHTML = original; return; }
+                
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        const workbook = XLSX.read(ev.target.result, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+                        
+                        const headers = json[0];
+                        dfData = json.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((h, i) => {
+                                if (h && h.toString().trim() !== '') obj[h.toString().trim()] = row[i];
+                            });
+                            return obj;
+                        });
+                        
+                        btnText.innerHTML = `✅ ${file.name}`;
+                        setTimeout(() => btnText.innerHTML = original, 2000);
+                        renderAllPlots();
+                        populateRaceDropdown();
+                    } catch (err) {
+                        console.error(err);
+                        alert('Error reading Excel file. Please make sure it is the correct CDC file.');
+                        btnText.innerHTML = original;
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+            input.click();
+        }
+
+        function populateRaceDropdown() {
+            const select = document.getElementById('raceSelect');
+            select.innerHTML = '<option value="all" selected>All Races</option>';
+            const races = new Set();
+            dfData.filter(r => r.YEAR === 2018 && r.STUB_NAME === 'Sex and race' && r.UNIT && r.UNIT.includes('age-adjusted')).forEach(r => {
+                let race = r.STUB_LABEL || '';
+                if (race.includes('White')) races.add('White');
+                else if (race.includes('Black')) races.add('Black or African American');
+                else if (race.includes('AIAN')) races.add('American Indian or Alaska Native');
+                else if (race.includes('Asian')) races.add('Asian or Pacific Islander');
+            });
+            Array.from(races).sort().forEach(race => {
+                const opt = document.createElement('option');
+                opt.value = race;
+                opt.textContent = race;
+                select.appendChild(opt);
+            });
+            updatePlot5();
+        }
+
+        function getGroupedSexByRaceData() {
+            const data = {};
+            const filtered = dfData.filter(r => r.YEAR === 2018 && r.STUB_NAME === 'Sex and race' && r.UNIT && r.UNIT.includes('age-adjusted'));
+            filtered.forEach(r => {
+                let race = r.STUB_LABEL || '';
+                if (race.includes('White')) race = 'White';
+                else if (race.includes('Black')) race = 'Black or African American';
+                else if (race.includes('AIAN')) race = 'American Indian or Alaska Native';
+                else if (race.includes('Asian')) race = 'Asian or Pacific Islander';
+                if (!data[race]) data[race] = { male: 0, female: 0 };
+                if (r.STUB_LABEL && r.STUB_LABEL.includes('Male')) data[race].male = parseFloat(r.ESTIMATE) || 0;
+                if (r.STUB_LABEL && r.STUB_LABEL.includes('Female')) data[race].female = parseFloat(r.ESTIMATE) || 0;
+            });
+            return { races: Object.keys(data), maleRates: Object.values(data).map(d => d.male), femaleRates: Object.values(data).map(d => d.female) };
+        }
+
+        function getTimeSeriesForRace(race) {
+            const years = [];
+            const maleRates = [];
+            const femaleRates = [];
+            const allYears = [...new Set(dfData.filter(r => r.YEAR).map(r => r.YEAR))].sort();
+            allYears.forEach(year => {
+                const rows = dfData.filter(r => r.YEAR === year && r.STUB_NAME === 'Sex and race' && r.UNIT && r.UNIT.includes('age-adjusted') && r.STUB_LABEL && r.STUB_LABEL.includes(race));
+                let male = 0, female = 0;
+                rows.forEach(r => {
+                    if (r.STUB_LABEL && r.STUB_LABEL.includes('Male')) male = parseFloat(r.ESTIMATE) || 0;
+                    if (r.STUB_LABEL && r.STUB_LABEL.includes('Female')) female = parseFloat(r.ESTIMATE) || 0;
+                });
+                years.push(year);
+                maleRates.push(male);
+                femaleRates.push(female);
+            });
+            return { years, maleRates, femaleRates };
+        }
+
+        function updatePlot5() {
+            const selected = document.getElementById('raceSelect').value;
+            const ctx = document.getElementById('sexRaceChart');
+            if (charts.sexRace) charts.sexRace.destroy();
+            
+            if (selected === 'all') {
+                document.getElementById('plot5-title').textContent = "2018 Rates by Race and Sex (All Races)";
+                const grouped = getGroupedSexByRaceData();
+                charts.sexRace = new Chart(ctx, {type:'bar', data:{labels:grouped.races, datasets:[{label:'Male', data:grouped.maleRates, backgroundColor:'#3b82f6', borderRadius:6},{label:'Female', data:grouped.femaleRates, backgroundColor:'#ec4899', borderRadius:6}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}}});
+            } else {
+                document.getElementById('plot5-title').textContent = `${selected} – Male vs Female Trends (1999–2018)`;
+                const data = getTimeSeriesForRace(selected);
+                charts.sexRace = new Chart(ctx, {type:'line', data:{labels:data.years, datasets:[{label:'Male', data:data.maleRates, borderColor:'#3b82f6', borderWidth:4, tension:0.3, pointRadius:3},{label:'Female', data:data.femaleRates, borderColor:'#ec4899', borderWidth:4, tension:0.3, pointRadius:3}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}}});
+            }
+        }
+
+        function renderAllPlots() {
+            if (!dfData || dfData.length === 0) return;
+            
+            // Plot 1
+            const ctx1 = document.getElementById('overallChart');
+            if (charts.overall) charts.overall.destroy();
+            const data1 = dfData.filter(r => r.INDICATOR === 'Drug overdose death rates' && r.PANEL === 'All drug overdose deaths' && r.STUB_LABEL === 'All persons' && r.UNIT && r.UNIT.includes('age-adjusted'));
+            const sorted1 = data1.sort((a,b) => a.YEAR - b.YEAR);
+            charts.overall = new Chart(ctx1, {type:'line', data:{labels:sorted1.map(r=>r.YEAR), datasets:[{label:'Rate', data:sorted1.map(r=>parseFloat(r.ESTIMATE)||0), borderColor:'#f97316', borderWidth:4, tension:0.3}]}, options:{responsive:true, maintainAspectRatio:false}});
+
+            // Plot 2
+            const ctx2 = document.getElementById('sexChart');
+            if (charts.sex) charts.sex.destroy();
+            const male = dfData.filter(r => r.STUB_LABEL === 'Male' && r.UNIT && r.UNIT.includes('age-adjusted') && r.PANEL === 'All drug overdose deaths').sort((a,b)=>a.YEAR-b.YEAR);
+            const female = dfData.filter(r => r.STUB_LABEL === 'Female' && r.UNIT && r.UNIT.includes('age-adjusted') && r.PANEL === 'All drug overdose deaths').sort((a,b)=>a.YEAR-b.YEAR);
+            charts.sex = new Chart(ctx2, {type:'line', data:{labels:male.map(r=>r.YEAR), datasets:[{label:'Male', data:male.map(r=>parseFloat(r.ESTIMATE)||0), borderColor:'#3b82f6', borderWidth:4, tension:0.3},{label:'Female', data:female.map(r=>parseFloat(r.ESTIMATE)||0), borderColor:'#ec4899', borderWidth:4, tension:0.3}]}, options:{responsive:true, maintainAspectRatio:false}});
+
+            // Plot 3 - Age Groups ONLY
+            const ctx3 = document.getElementById('ageChart');
+            if (charts.age) charts.age.destroy();
+            const ageData = dfData.filter(r => r.YEAR === 2018 && r.STUB_NAME === 'Age' && r.UNIT && r.UNIT.includes('crude') && r.PANEL === 'All drug overdose deaths');
+            const ageGroups = [], ageRates = [];
+            const seen = new Set();
+            ageData.forEach(r => {
+                const label = r.STUB_LABEL;
+                if (label && label !== 'All Ages' && !seen.has(label)) {
+                    seen.add(label);
+                    ageGroups.push(label);
+                    ageRates.push(parseFloat(r.ESTIMATE) || 0);
+                }
+            });
+            charts.age = new Chart(ctx3, {type:'bar', data:{labels:ageGroups, datasets:[{label:'2018 Rate', data:ageRates, backgroundColor:'#f97316', borderRadius:6}]}, options:{responsive:true, maintainAspectRatio:false}});
+
+            // Plot 4 - Race ONLY
+            const ctx4 = document.getElementById('raceChart');
+            if (charts.race) charts.race.destroy();
+            const raceData = dfData.filter(r => r.YEAR === 2018 && r.STUB_NAME === 'Sex and race' && r.UNIT && r.UNIT.includes('age-adjusted'));
+            const raceMap = {};
+            raceData.forEach(r => {
+                let race = r.STUB_LABEL || '';
+                if (race.includes('White')) race = 'White';
+                else if (race.includes('Black')) race = 'Black or African American';
+                else if (race.includes('AIAN')) race = 'American Indian or Alaska Native';
+                else if (race.includes('Asian')) race = 'Asian or Pacific Islander';
+                if (!raceMap[race]) raceMap[race] = parseFloat(r.ESTIMATE) || 0;
+            });
+            charts.race = new Chart(ctx4, {type:'bar', data:{labels:Object.keys(raceMap), datasets:[{label:'2018 Rate', data:Object.values(raceMap), backgroundColor:'#ec4899', borderRadius:6}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}});
+
+            // Plot 5
+            updatePlot5();
+
+            // Plot 6 - By Drug Type
+            const ctx6 = document.getElementById('drugTypeChart');
+            if (charts.drugType) charts.drugType.destroy();
+            const drugPanels = [
+                {name: "Any Opioid", panel: "Drug overdose deaths involving any opioid"},
+                {name: "Heroin", panel: "Drug overdose deaths involving heroin"},
+                {name: "Natural & Semisynthetic Opioids", panel: "Drug overdose deaths involving natural and semisynthetic opioids"},
+                {name: "Other Synthetic Opioids", panel: "Drug overdose deaths involving other synthetic opioids (other than methadone)"},
+                {name: "Methadone", panel: "Drug overdose deaths involving methadone"}
+            ];
+            const drugLabels = [], drugRates = [];
+            drugPanels.forEach(d => {
+                const row = dfData.find(r => r.YEAR === 2018 && r.PANEL === d.panel && r.STUB_LABEL === 'All persons' && r.UNIT && r.UNIT.includes('age-adjusted'));
+                if (row) {
+                    drugLabels.push(d.name);
+                    drugRates.push(parseFloat(row.ESTIMATE) || 0);
+                }
+            });
+            charts.drugType = new Chart(ctx6, {type:'bar', data:{labels:drugLabels, datasets:[{label:'2018 Rate', data:drugRates, backgroundColor:'#f97316', borderRadius:6}]}, options:{responsive:true, maintainAspectRatio:false}});
+        }
+
+        function toggleStoryMode() {
+            isStoryMode = !isStoryMode;
+            document.getElementById('story-mode').classList.toggle('hidden', !isStoryMode);
+            document.getElementById('normal-dashboard').classList.toggle('hidden', isStoryMode);
+            
+            if (isStoryMode) {
+                document.getElementById('story-btn-text').innerHTML = 'Exit Story';
+                document.getElementById('story-icon').textContent = '✕';
+                currentStep = 0;
+                showStoryStep();
+            } else {
+                document.getElementById('story-btn-text').innerHTML = 'Begin the Story';
+                document.getElementById('story-icon').textContent = '📖';
+                document.querySelectorAll('.plot-card').forEach(c => c.classList.remove('highlight'));
+            }
+        }
+
+        function showStoryStep() {
+            const step = storyData[currentStep];
+            document.getElementById('story-step-title').textContent = step.title;
+            document.getElementById('story-subtitle').textContent = step.subtitle;
+            document.getElementById('story-text').innerHTML = `<p>${step.text}</p>`;
+            document.getElementById('step-counter').textContent = `${currentStep + 1} of ${storyData.length}`;
+            
+            document.querySelectorAll('.plot-card').forEach(card => card.classList.remove('highlight'));
+            const card = document.getElementById(step.cardId);
+            if (card) card.classList.add('highlight');
+            
+            const container = document.getElementById('key-stats');
+            container.innerHTML = step.stats.map(s => `
+                <div class="bg-slate-800 rounded-2xl p-4 text-center">
+                    <div class="text-4xl font-mono font-bold">${s.value}</div>
+                    <div class="text-xs text-slate-400">${s.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function nextStoryStep() { currentStep = (currentStep + 1) % storyData.length; showStoryStep(); }
+        function prevStoryStep() { currentStep = (currentStep - 1 + storyData.length) % storyData.length; showStoryStep(); }
+        function goToStep(n) { currentStep = n; showStoryStep(); }
+
+        function showPDFOptionsModal() {
+            document.getElementById('pdfModal').classList.remove('hidden');
+            document.getElementById('pdfModal').classList.add('flex');
+        }
+        function hidePDFOptionsModal() {
+            const modal = document.getElementById('pdfModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        async function generateCustomPDF() {
+            hidePDFOptionsModal();
+            const button = document.querySelector('button[onclick="showPDFOptionsModal()"]');
+            const originalText = button.innerHTML;
+            button.innerHTML = 'Generating PDF...';
+            try {
+                const element = document.querySelector('#normal-dashboard');
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#0f172a' });
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                pdf.save('Drug_Overdose_Death_Rates_Dashboard.pdf');
+            } catch (err) {
+                console.error(err);
+                alert('PDF generation failed.');
+            } finally {
+                button.innerHTML = originalText;
+            }
+        }
+
+        window.onload = function() {
+            initTailwind();
+            console.log('%c✅ Complete dashboard with Plot 6 and full Story Mode loaded!', 'color:#f97316;font-weight:700');
+        };
+    </script>
+</body>
+</html>
